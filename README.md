@@ -18,9 +18,19 @@ Override defaults via `Options`:
 
 ```go
 clean := redact.SecretsOpts(text, redact.Options{
-    Redacted:         "***",
+    // Placeholder written in place of each detected secret.
+    // Default: "[REDACTED]".
+    Redacted: "***",
+
+    // Minimum Shannon entropy (bits/char) a captured value must have
+    // to be treated as a secret by the generic detector. Lower values
+    // redact more aggressively; raise it to cut false positives on
+    // low-entropy strings. Default: 3.5.
     MinEntropySecret: 4.0,
-    MinSubmatchLen:   2,
+
+    // Minimum number of regex submatches required before a generic
+    // match is considered for redaction. Default: 2.
+    MinSubmatchLen: 2,
 })
 ```
 
