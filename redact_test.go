@@ -7,7 +7,7 @@ import (
 	"github.com/inancgumus/redact"
 )
 
-func TestSecrets_Redacts(t *testing.T) {
+func TestString_Redacts(t *testing.T) {
 	rep := strings.Repeat
 	hex32 := "0123456789abcdef0123456789abcdef"
 	hex40 := hex32 + "01234567"
@@ -154,7 +154,7 @@ func TestSecrets_Redacts(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := redact.Secrets(c.input)
+			got := redact.String(c.input, redact.DefaultOptions)
 			if c.leak != "" && strings.Contains(got, c.leak) {
 				t.Errorf("secret leaked\n input: %q\n  leak: %q\n   got: %q", c.input, c.leak, got)
 			}
@@ -165,7 +165,7 @@ func TestSecrets_Redacts(t *testing.T) {
 	}
 }
 
-func TestSecrets_Preserves(t *testing.T) {
+func TestString_Preserves(t *testing.T) {
 	cases := []struct{ name, input string }{
 		{"empty", ""},
 		{"plain prose", "the quick brown fox jumps over the lazy dog"},
@@ -180,7 +180,7 @@ func TestSecrets_Preserves(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := redact.Secrets(c.input)
+			got := redact.String(c.input, redact.DefaultOptions)
 			if strings.Contains(got, redact.DefaultRedacted) {
 				t.Errorf("unexpected redaction\n input: %q\n   got: %q", c.input, got)
 			}
@@ -191,9 +191,9 @@ func TestSecrets_Preserves(t *testing.T) {
 	}
 }
 
-func TestSecretsOpts_CustomPlaceholder(t *testing.T) {
+func TestString_CustomPlaceholder(t *testing.T) {
 	in := "AKIAIOSFODNN7EXAMPLE"
-	out := redact.SecretsOpts(in, redact.Options{Redacted: "<scrubbed>"})
+	out := redact.String(in, redact.Options{Redacted: "<scrubbed>"})
 	if strings.Contains(out, in) {
 		t.Errorf("secret survived: %q", out)
 	}
@@ -205,19 +205,19 @@ func TestSecretsOpts_CustomPlaceholder(t *testing.T) {
 	}
 }
 
-func TestSecretsOpts_ZeroFieldsUseDefaults(t *testing.T) {
+func TestString_ZeroFieldsUseDefaults(t *testing.T) {
 	in := "AKIAIOSFODNN7EXAMPLE"
-	got := redact.SecretsOpts(in, redact.Options{})
-	want := redact.Secrets(in)
+	got := redact.String(in, redact.Options{})
+	want := redact.String(in, redact.DefaultOptions)
 	if got != want {
-		t.Errorf("zero Options diverged from Secrets()\n opts: %q\n bare: %q", got, want)
+		t.Errorf("zero Options diverged from DefaultOptions\n opts: %q\n bare: %q", got, want)
 	}
 }
 
-func TestSecretsOpts_RaisedEntropyDisablesGenericMatch(t *testing.T) {
+func TestString_RaisedEntropyDisablesGenericMatch(t *testing.T) {
 	in := `api_key="abcdefghij1234567890"`
-	lax := redact.SecretsOpts(in, redact.Options{MinEntropySecret: 1.0})
-	strict := redact.SecretsOpts(in, redact.Options{MinEntropySecret: 10.0})
+	lax := redact.String(in, redact.Options{MinEntropySecret: 1.0})
+	strict := redact.String(in, redact.Options{MinEntropySecret: 10.0})
 	if !strings.Contains(lax, redact.DefaultRedacted) {
 		t.Errorf("low entropy threshold failed to redact: %q", lax)
 	}
@@ -226,11 +226,11 @@ func TestSecretsOpts_RaisedEntropyDisablesGenericMatch(t *testing.T) {
 	}
 }
 
-func TestSecrets_MultipleInOneInput(t *testing.T) {
+func TestString_MultipleInOneInput(t *testing.T) {
 	a := "AKIAIOSFODNN7EXAMPLE"
 	b := "ghp_abcdefghijklmnopqrstuvwxyz0123456789"
 	in := "first: " + a + " second: " + b
-	got := redact.Secrets(in)
+	got := redact.String(in, redact.DefaultOptions)
 	if strings.Contains(got, a) {
 		t.Errorf("first secret survived: %q", got)
 	}
@@ -242,9 +242,9 @@ func TestSecrets_MultipleInOneInput(t *testing.T) {
 	}
 }
 
-func TestSecrets_PreservesSurroundingContext(t *testing.T) {
+func TestString_PreservesSurroundingContext(t *testing.T) {
 	in := "before AKIAIOSFODNN7EXAMPLE after"
-	got := redact.Secrets(in)
+	got := redact.String(in, redact.DefaultOptions)
 	if !strings.HasPrefix(got, "before ") {
 		t.Errorf("prefix lost: %q", got)
 	}

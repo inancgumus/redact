@@ -30,6 +30,14 @@ type Options struct {
 	MinSubmatchLen int
 }
 
+// DefaultOptions holds the default redaction settings. Pass to String when no
+// overrides are needed.
+var DefaultOptions = Options{
+	Redacted:         DefaultRedacted,
+	MinEntropySecret: DefaultMinEntropySecret,
+	MinSubmatchLen:   DefaultMinSubmatchLen,
+}
+
 func (o Options) resolve() Options {
 	if o.Redacted == "" {
 		o.Redacted = DefaultRedacted
@@ -43,13 +51,8 @@ func (o Options) resolve() Options {
 	return o
 }
 
-// Secrets replaces known secret patterns in content using default options.
-func Secrets(content string) string {
-	return SecretsOpts(content, Options{})
-}
-
-// SecretsOpts replaces known secret patterns in content using opts.
-func SecretsOpts(content string, opts Options) string {
+// String replaces known secret patterns in content using opts.
+func String(content string, opts Options) string {
 	opts = opts.resolve()
 	result := content
 	for _, p := range secretPatterns(opts) {

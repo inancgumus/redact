@@ -11,13 +11,13 @@ go get github.com/inancgumus/redact
 ## Use
 
 ```go
-clean := redact.Secrets(text)
+clean := redact.String(text, redact.DefaultOptions)
 ```
 
 Override defaults via `Options`:
 
 ```go
-clean := redact.SecretsOpts(text, redact.Options{
+clean := redact.String(text, redact.Options{
     // Placeholder written in place of each detected secret.
     // Default: "[REDACTED]".
     Redacted: "***",
