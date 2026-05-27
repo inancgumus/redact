@@ -252,3 +252,29 @@ func TestString_PreservesSurroundingContext(t *testing.T) {
 		t.Errorf("suffix lost: %q", got)
 	}
 }
+
+func TestHasSecrets(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		opts  redact.Options
+		want  bool
+	}{
+		{"aws access key", "AKIAIOSFODNN7EXAMPLE", redact.DefaultOptions, true},
+		{"github pat", "ghp_abcdefghijklmnopqrstuvwxyz0123456789", redact.DefaultOptions, true},
+		{"generic api_key", `api_key="aB3kPq9xZ7mNvR2tYuIo"`, redact.DefaultOptions, true},
+		{"plain prose", "the quick brown fox", redact.DefaultOptions, false},
+		{"empty", "", redact.DefaultOptions, false},
+		{"var expansion", `password="${SECRET}"`, redact.DefaultOptions, false},
+		{"uuid value", "token=550e8400-e29b-41d4-a716-446655440000", redact.DefaultOptions, false},
+		{"zero opts use defaults", "AKIAIOSFODNN7EXAMPLE", redact.Options{}, true},
+		{"raised entropy disables generic", `api_key="aB3kPq9xZ7mNvR2tYuIo"`, redact.Options{MinEntropy: 10.0}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := redact.HasSecrets(c.input, c.opts); got != c.want {
+				t.Errorf("HasSecrets(%q) = %v, want %v", c.input, got, c.want)
+			}
+		})
+	}
+}

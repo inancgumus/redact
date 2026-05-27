@@ -68,6 +68,12 @@ func String(content string, opts Options) string {
 	return result
 }
 
+// HasSecrets reports whether content contains any pattern that String
+// would redact under opts.
+func HasSecrets(content string, opts Options) bool {
+	return String(content, opts) != content
+}
+
 type pattern struct {
 	re *regexp.Regexp
 	fn func(string) string
