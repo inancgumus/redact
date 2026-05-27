@@ -1,0 +1,4 @@
+# Redacts a secret passed as a positional arg.
+exec ./redact AKIAIOSFODNN7EXAMPLE
+! stdout 'AKIAIOSFODNN7EXAMPLE'
+stdout '\*+'

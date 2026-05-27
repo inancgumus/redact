@@ -1,0 +1,9 @@
+# High --min-entropy suppresses the generic detector.
+exec ./redact --min-entropy=10 'api_key="abcdefghij1234567890"'
+! stdout '\*'
+stdout 'abcdefghij1234567890'
+
+# Low --min-entropy redacts aggressively.
+exec ./redact --min-entropy=1 'api_key="abcdefghij1234567890"'
+stdout '\*+'
+! stdout 'abcdefghij1234567890'

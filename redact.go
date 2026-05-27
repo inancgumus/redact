@@ -1,4 +1,5 @@
-// Package redact replaces known secret patterns in text with [REDACTED].
+// Package redact replaces known secret patterns in text with a mask
+// repeated to the length of the original secret.
 package redact
 
 import (
@@ -8,8 +9,10 @@ import (
 )
 
 const (
-	// DefaultMask is the placeholder used to replace detected secrets.
-	DefaultMask = "[REDACTED]"
+	// DefaultMask is the character repeated for each byte of a detected
+	// secret. Output preserves the original length: a 20-byte secret
+	// becomes 20 copies of DefaultMask.
+	DefaultMask rune = '*'
 	// DefaultMinEntropy is the minimum Shannon entropy (bits/char) a
 	// captured value must have to be treated as a secret.
 	DefaultMinEntropy = 3.5
@@ -20,8 +23,8 @@ const (
 
 // Options configures redaction. Zero-valued fields fall back to defaults.
 type Options struct {
-	// Mask is the replacement string written in place of detected secrets.
-	Mask string
+	// Mask is the character repeated for each byte of a detected secret.
+	Mask rune
 	// MinEntropy is the minimum Shannon entropy (bits/char) a captured
 	// value must have to be redacted. Lower values redact more aggressively.
 	MinEntropy float64
@@ -39,7 +42,7 @@ var DefaultOptions = Options{
 }
 
 func (o Options) resolve() Options {
-	if o.Mask == "" {
+	if o.Mask == 0 {
 		o.Mask = DefaultMask
 	}
 	if o.MinEntropy == 0 {
@@ -50,6 +53,9 @@ func (o Options) resolve() Options {
 	}
 	return o
 }
+
+// mask returns Mask repeated n times.
+func (o Options) mask(n int) string { return strings.Repeat(string(o.Mask), n) }
 
 // String replaces known secret patterns in content using opts.
 func String(content string, opts Options) string {
@@ -75,17 +81,17 @@ var (
 	urlCredsRE      = regexp.MustCompile(`://([^\s:]+):(.+)@`)
 	quotedValueRE   = regexp.MustCompile(`["']([^"']{8,})["']`)
 	querySecretRE   = regexp.MustCompile(`=([^&\s"'` + "`" + `]{6,})`)
+	btoaInnerRE     = regexp.MustCompile(`btoa\(["']([^"']+:[^"']+)["']\)`)
 )
 
 func secretPatterns(opts Options) []pattern {
-	red := opts.Mask
-	constFn := func(string) string { return red }
+	constFn := func(m string) string { return opts.mask(len(m)) }
 	return []pattern{
 		{regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY[A-Z ]*-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY[A-Z ]*-----`), constFn},
 
 		{regexp.MustCompile(`\b(?:A3T[A-Z0-9]|AKIA|ASIA|ABIA|ACCA)[A-Z2-7]{16}\b`), constFn},
 		{regexp.MustCompile(`(?i)(?:secret_?access_?key|aws_secret)["'\s]*[:=]["'\s]*([A-Za-z0-9/+=]{40})`), func(m string) string {
-			return awsSecretRE.ReplaceAllString(m, red)
+			return awsSecretRE.ReplaceAllStringFunc(m, func(s string) string { return opts.mask(len(s)) })
 		}},
 		{regexp.MustCompile(`\bbedrock-api-key-YmVkcm9jay5hbWF6b25hd3MuY29t[A-Za-z0-9+/=]*`), constFn},
 
@@ -127,7 +133,13 @@ func secretPatterns(opts Options) []pattern {
 		{regexp.MustCompile(`\beyJrIjoi[A-Za-z0-9]{70,400}={0,3}`), constFn},
 		{regexp.MustCompile(`Bearer\s+[A-Za-z0-9_.\-/+=]+`), constFn},
 		{regexp.MustCompile(`Basic\s+[A-Za-z0-9+/]+=*`), constFn},
-		{regexp.MustCompile(`btoa\(["'][^"']+:[^"']+["']\)`), func(string) string { return `btoa("` + red + `")` }},
+		{regexp.MustCompile(`btoa\(["']([^"']+:[^"']+)["']\)`), func(m string) string {
+			sub := btoaInnerRE.FindStringSubmatch(m)
+			if len(sub) < 2 {
+				return m
+			}
+			return strings.Replace(m, sub[1], opts.mask(len(sub[1])), 1)
+		}},
 
 		{regexp.MustCompile(`\bnpm_[A-Za-z0-9]{36}\b`), constFn},
 		{regexp.MustCompile(`\bpypi-AgEIcHlwaS5vcmc[A-Za-z0-9_\-]{50,}`), constFn},
@@ -198,7 +210,9 @@ func secretPatterns(opts Options) []pattern {
 		{regexp.MustCompile(`://([^\s:]+):(.+)@[^@\s]*[:/?)` + `]`), redactURLCredentials(opts)},
 		{regexp.MustCompile(`(?i)["']?(?:passw(?:or)?d|secret|credential)[\w.\-]{0,20}["']?\s*[:=]\s*["']([^"']{8,})["']`), redactPasswordValue(opts)},
 		{regexp.MustCompile(`(?i)([?&])(?:passw(?:or)?d|secret|token|key|auth)=([^&\s"'` + "`" + `]{6,})`), func(m string) string {
-			return querySecretRE.ReplaceAllString(m, "="+red)
+			return querySecretRE.ReplaceAllStringFunc(m, func(s string) string {
+				return "=" + opts.mask(len(s)-1)
+			})
 		}},
 	}
 }
@@ -206,10 +220,12 @@ func secretPatterns(opts Options) []pattern {
 func redactURLCredentials(opts Options) func(string) string {
 	return func(m string) string {
 		return urlCredsRE.ReplaceAllStringFunc(m, func(sub string) string {
+			parts := urlCredsRE.FindStringSubmatch(sub)
+			if len(parts) < 3 {
+				return sub
+			}
 			i := strings.Index(sub, "://")
-			rest := sub[i+3:]
-			user, _, _ := strings.Cut(rest, ":")
-			return sub[:i+3] + user + ":" + opts.Mask + "@"
+			return sub[:i+3] + parts[1] + ":" + opts.mask(len(parts[2])) + "@"
 		})
 	}
 }
@@ -230,7 +246,7 @@ func redactPasswordValue(opts Options) func(string) string {
 			return m
 		}
 		lhs := m[:delimIdx+1]
-		newRHS := rhs[:loc[0]+1] + opts.Mask + rhs[loc[1]-1:]
+		newRHS := rhs[:loc[0]+1] + opts.mask(len(val)) + rhs[loc[1]-1:]
 		return lhs + newRHS
 	}
 }
@@ -251,7 +267,7 @@ func redact(opts Options) func(string) string {
 		if shannonEntropy(captured) < opts.MinEntropy {
 			return m
 		}
-		return strings.Replace(m, captured, opts.Mask, 1)
+		return strings.Replace(m, captured, opts.mask(len(captured)), 1)
 	}
 }
 

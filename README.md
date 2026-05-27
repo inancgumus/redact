@@ -1,54 +1,72 @@
 # redact
 
-Replaces secrets in text with `[REDACTED]`.
+Hide secrets in text.
 
-## Install
+## Usage
+
+Pass text as an argument:
 
 ```
-go get github.com/inancgumus/redact
+$ redact 'user=alice token=ghp_abcdefghijklmnopqrstuvwxyz0123456789 status=ok'
+user=alice token=**************************************** status=ok
 ```
 
-## Use
+Or pipe a file:
+
+```
+$ redact < ~/.aws/credentials
+[default]
+aws_access_key_id = ********************
+aws_secret_access_key = ****************************************
+```
+
+Custom mask character:
+
+```
+$ redact --mask=# 'token: ghp_abcdefghijklmnopqrstuvwxyz0123456789'
+token: ########################################
+```
+
+Catch a wider net of unknown-looking values in a config file:
+
+```
+$ redact --min-entropy=2.0 < config.yaml
+```
+
+## Use as a package
 
 ```go
+import "github.com/inancgumus/redact"
+
 clean := redact.String(text, redact.DefaultOptions)
 ```
 
-Override defaults via `Options`:
+Tune the defaults:
 
 ```go
 clean := redact.String(text, redact.Options{
-    // Placeholder written in place of each detected secret.
-    // Default: "[REDACTED]".
-    Mask: "***",
-
-    // Minimum Shannon entropy (bits/char) a captured value must have
-    // to be treated as a secret by the generic detector. Lower values
-    // redact more aggressively; raise it to cut false positives on
-    // low-entropy strings. Default: 3.5.
-    MinEntropy: 4.0,
-
-    // Minimum number of regex submatches required before a generic
-    // match is considered for redaction. Default: 2.
-    MinSubmatch: 2,
+    Mask:        '#',  // Character repeated for each byte. Default '*'.
+    MinEntropy:  4.0,  // Raise to cut false positives. Default 3.5.
+    MinSubmatch: 2,    // Raise to be more cautious on unknown patterns. Default 2.
 })
 ```
 
-## Catches
+Any zero field falls back to the default.
 
-Shape-based catches:
+## What it catches
+
+### Patterns by shape
 
 - PEM private keys
 - JWTs
-- `Bearer` auth headers
-- `Basic` auth headers
+- `Bearer` and `Basic` auth headers
 - URL credentials (`user:pass@host`)
 - `btoa("user:pass")` calls
 - `password` / `secret` / `credential` assignments
-- Query-string secrets (`?token=...`, `?key=...`, etc.)
-- Generic high-entropy values near words like `key`, `secret`, `token`
+- Query-string secrets (`?token=...`, `?key=...`)
+- High-entropy values near words like `key`, `secret`, `token`
 
-Provider-token catches (prefix-anchored):
+### Provider tokens (prefix-anchored)
 
 - AWS access keys (`AKIA`, `ASIA`, `ABIA`, `ACCA`, `A3T...`)
 - AWS secret keys (keyword-anchored 40-char base64)
@@ -159,9 +177,9 @@ Provider-token catches (prefix-anchored):
 - HashiCorp Terraform (`<id>.atlasv1.<...>`)
 - Telegram bot token
 
-## Skips
+### What it skips
 
-- Variable expansions (`${...}`, `$(...)`)
+- Variable expansions like `${SECRET}` or `$(cat secret)`
 - UUIDs
-- Dotted property access (`apiClient.token`)
-- Values containing stopwords (`example`, `test`, `placeholder`, etc.)
+- Dotted property access like `apiClient.token`
+- Values containing words like `example`, `test`, `placeholder`

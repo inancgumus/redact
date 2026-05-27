@@ -1,0 +1,10 @@
+# Reads from stdin when no args are given.
+stdin secret.txt
+exec ./redact
+! stdout 'AKIAIOSFODNN7EXAMPLE'
+! stdout 'ghp_abcdefghijklmnopqrstuvwxyz0123456789'
+stdout '\*+'
+
+-- secret.txt --
+aws: AKIAIOSFODNN7EXAMPLE
+github: ghp_abcdefghijklmnopqrstuvwxyz0123456789

@@ -1,0 +1,13 @@
+# Plain prose passes through unchanged.
+exec ./redact 'the quick brown fox'
+stdout '^the quick brown fox$'
+! stdout '\*'
+
+# Variable expansion is preserved.
+stdin var.txt
+exec ./redact
+stdout '\$\{SECRET\}'
+! stdout '\*'
+
+-- var.txt --
+password="${SECRET}"

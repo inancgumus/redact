@@ -1,0 +1,12 @@
+# No args and empty stdin prints usage to stderr and exits 0.
+exec ./redact
+stderr 'usage: redact'
+stderr '-mask'
+stderr '-min-entropy'
+stderr '-min-submatch'
+! stdout .
+
+# Explicit -h also prints usage and exits 0.
+exec ./redact -h
+stderr 'usage: redact'
+! stdout .

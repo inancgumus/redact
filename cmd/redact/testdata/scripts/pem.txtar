@@ -1,0 +1,12 @@
+# Multi-line PEM private key is redacted as a single block.
+stdin key.pem
+exec ./redact
+stdout '\*+'
+! stdout 'FAKE-KEY-DATA'
+! stdout 'BEGIN'
+! stdout 'END'
+
+-- key.pem --
+-----BEGIN RSA PRIVATE KEY-----
+FAKE-KEY-DATA-AAAAAA
+-----END RSA PRIVATE KEY-----
