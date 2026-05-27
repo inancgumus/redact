@@ -8,45 +8,45 @@ import (
 )
 
 const (
-	// DefaultRedacted is the placeholder used to replace detected secrets.
-	DefaultRedacted = "[REDACTED]"
-	// DefaultMinEntropySecret is the minimum Shannon entropy (bits/char) a
+	// DefaultMask is the placeholder used to replace detected secrets.
+	DefaultMask = "[REDACTED]"
+	// DefaultMinEntropy is the minimum Shannon entropy (bits/char) a
 	// captured value must have to be treated as a secret.
-	DefaultMinEntropySecret = 3.5
-	// DefaultMinSubmatchLen is the minimum number of regex submatches required
+	DefaultMinEntropy = 3.5
+	// DefaultMinSubmatch is the minimum number of regex submatches required
 	// before a generic match is considered for redaction.
-	DefaultMinSubmatchLen = 2
+	DefaultMinSubmatch = 2
 )
 
 // Options configures redaction. Zero-valued fields fall back to defaults.
 type Options struct {
-	// Redacted is the replacement string written in place of detected secrets.
-	Redacted string
-	// MinEntropySecret is the minimum Shannon entropy (bits/char) a captured
+	// Mask is the replacement string written in place of detected secrets.
+	Mask string
+	// MinEntropy is the minimum Shannon entropy (bits/char) a captured
 	// value must have to be redacted. Lower values redact more aggressively.
-	MinEntropySecret float64
-	// MinSubmatchLen is the minimum number of regex submatches required before
+	MinEntropy float64
+	// MinSubmatch is the minimum number of regex submatches required before
 	// a generic match is considered for redaction.
-	MinSubmatchLen int
+	MinSubmatch int
 }
 
 // DefaultOptions holds the default redaction settings. Pass to String when no
 // overrides are needed.
 var DefaultOptions = Options{
-	Redacted:         DefaultRedacted,
-	MinEntropySecret: DefaultMinEntropySecret,
-	MinSubmatchLen:   DefaultMinSubmatchLen,
+	Mask:        DefaultMask,
+	MinEntropy:  DefaultMinEntropy,
+	MinSubmatch: DefaultMinSubmatch,
 }
 
 func (o Options) resolve() Options {
-	if o.Redacted == "" {
-		o.Redacted = DefaultRedacted
+	if o.Mask == "" {
+		o.Mask = DefaultMask
 	}
-	if o.MinEntropySecret == 0 {
-		o.MinEntropySecret = DefaultMinEntropySecret
+	if o.MinEntropy == 0 {
+		o.MinEntropy = DefaultMinEntropy
 	}
-	if o.MinSubmatchLen == 0 {
-		o.MinSubmatchLen = DefaultMinSubmatchLen
+	if o.MinSubmatch == 0 {
+		o.MinSubmatch = DefaultMinSubmatch
 	}
 	return o
 }
@@ -78,7 +78,7 @@ var (
 )
 
 func secretPatterns(opts Options) []pattern {
-	red := opts.Redacted
+	red := opts.Mask
 	constFn := func(string) string { return red }
 	return []pattern{
 		{regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY[A-Z ]*-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY[A-Z ]*-----`), constFn},
@@ -209,7 +209,7 @@ func redactURLCredentials(opts Options) func(string) string {
 			i := strings.Index(sub, "://")
 			rest := sub[i+3:]
 			user, _, _ := strings.Cut(rest, ":")
-			return sub[:i+3] + user + ":" + opts.Redacted + "@"
+			return sub[:i+3] + user + ":" + opts.Mask + "@"
 		})
 	}
 }
@@ -230,7 +230,7 @@ func redactPasswordValue(opts Options) func(string) string {
 			return m
 		}
 		lhs := m[:delimIdx+1]
-		newRHS := rhs[:loc[0]+1] + opts.Redacted + rhs[loc[1]-1:]
+		newRHS := rhs[:loc[0]+1] + opts.Mask + rhs[loc[1]-1:]
 		return lhs + newRHS
 	}
 }
@@ -238,7 +238,7 @@ func redactPasswordValue(opts Options) func(string) string {
 func redact(opts Options) func(string) string {
 	return func(m string) string {
 		subs := genericSecretRE.FindStringSubmatch(m)
-		if len(subs) < opts.MinSubmatchLen {
+		if len(subs) < opts.MinSubmatch {
 			return m
 		}
 		captured := subs[1]
@@ -248,10 +248,10 @@ func redact(opts Options) func(string) string {
 		if notSecretRE.MatchString(captured) || uuidRE.MatchString(captured) {
 			return m
 		}
-		if shannonEntropy(captured) < opts.MinEntropySecret {
+		if shannonEntropy(captured) < opts.MinEntropy {
 			return m
 		}
-		return strings.Replace(m, captured, opts.Redacted, 1)
+		return strings.Replace(m, captured, opts.Mask, 1)
 	}
 }
 

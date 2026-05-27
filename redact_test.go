@@ -158,7 +158,7 @@ func TestString_Redacts(t *testing.T) {
 			if c.leak != "" && strings.Contains(got, c.leak) {
 				t.Errorf("secret leaked\n input: %q\n  leak: %q\n   got: %q", c.input, c.leak, got)
 			}
-			if !strings.Contains(got, redact.DefaultRedacted) {
+			if !strings.Contains(got, redact.DefaultMask) {
 				t.Errorf("no [REDACTED] marker in output\n input: %q\n   got: %q", c.input, got)
 			}
 		})
@@ -181,7 +181,7 @@ func TestString_Preserves(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			got := redact.String(c.input, redact.DefaultOptions)
-			if strings.Contains(got, redact.DefaultRedacted) {
+			if strings.Contains(got, redact.DefaultMask) {
 				t.Errorf("unexpected redaction\n input: %q\n   got: %q", c.input, got)
 			}
 			if got != c.input {
@@ -193,14 +193,14 @@ func TestString_Preserves(t *testing.T) {
 
 func TestString_CustomPlaceholder(t *testing.T) {
 	in := "AKIAIOSFODNN7EXAMPLE"
-	out := redact.String(in, redact.Options{Redacted: "<scrubbed>"})
+	out := redact.String(in, redact.Options{Mask: "<scrubbed>"})
 	if strings.Contains(out, in) {
 		t.Errorf("secret survived: %q", out)
 	}
 	if !strings.Contains(out, "<scrubbed>") {
 		t.Errorf("custom placeholder missing: %q", out)
 	}
-	if strings.Contains(out, redact.DefaultRedacted) {
+	if strings.Contains(out, redact.DefaultMask) {
 		t.Errorf("default placeholder leaked when custom set: %q", out)
 	}
 }
@@ -216,12 +216,12 @@ func TestString_ZeroFieldsUseDefaults(t *testing.T) {
 
 func TestString_RaisedEntropyDisablesGenericMatch(t *testing.T) {
 	in := `api_key="abcdefghij1234567890"`
-	lax := redact.String(in, redact.Options{MinEntropySecret: 1.0})
-	strict := redact.String(in, redact.Options{MinEntropySecret: 10.0})
-	if !strings.Contains(lax, redact.DefaultRedacted) {
+	lax := redact.String(in, redact.Options{MinEntropy: 1.0})
+	strict := redact.String(in, redact.Options{MinEntropy: 10.0})
+	if !strings.Contains(lax, redact.DefaultMask) {
 		t.Errorf("low entropy threshold failed to redact: %q", lax)
 	}
-	if strings.Contains(strict, redact.DefaultRedacted) {
+	if strings.Contains(strict, redact.DefaultMask) {
 		t.Errorf("high entropy threshold should suppress redaction: %q", strict)
 	}
 }
@@ -237,7 +237,7 @@ func TestString_MultipleInOneInput(t *testing.T) {
 	if strings.Contains(got, b) {
 		t.Errorf("second secret survived: %q", got)
 	}
-	if strings.Count(got, redact.DefaultRedacted) < 2 {
+	if strings.Count(got, redact.DefaultMask) < 2 {
 		t.Errorf("expected at least two [REDACTED] markers: %q", got)
 	}
 }
