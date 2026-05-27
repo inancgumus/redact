@@ -1,4 +1,0 @@
-# Multiple positional args are joined with a space.
-exec ./redact 'before' AKIAIOSFODNN7EXAMPLE 'after'
-stdout '^before \*+ after$'
-! stdout 'AKIAIOSFODNN7EXAMPLE'

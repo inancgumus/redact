@@ -1,9 +1,9 @@
 # Custom mask character via --mask.
-exec ./redact '--mask=#' AKIAIOSFODNN7EXAMPLE
+exec ./redact '--mask=#' -string AKIAIOSFODNN7EXAMPLE
 stdout '^####################$'
 ! stdout 'AKIAIOSFODNN7EXAMPLE'
 ! stdout '\*'
 
 # Rejects multi-character mask.
-! exec ./redact '--mask=ab' AKIAIOSFODNN7EXAMPLE
+! exec ./redact '--mask=ab' -string AKIAIOSFODNN7EXAMPLE
 stderr 'mask must be one character'

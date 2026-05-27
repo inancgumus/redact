@@ -1,12 +1,17 @@
-# No args and empty stdin prints usage to stderr and exits 0.
+# Empty stdin produces empty output, exits 0 (cat-like).
 exec ./redact
-stderr 'usage: redact'
-stderr '-mask'
-stderr '-min-entropy'
-stderr '-min-submatch'
 ! stdout .
+! stderr .
 
-# Explicit -h also prints usage and exits 0.
+# Explicit -h prints usage and exits 0.
 exec ./redact -h
 stderr 'usage: redact'
+! stdout .
+
+# Positional args are rejected.
+! exec ./redact some-text
+stderr 'unexpected positional args'
+
+# Empty -string yields empty output.
+exec ./redact -string ''
 ! stdout .

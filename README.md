@@ -4,14 +4,7 @@ Hide secrets in text.
 
 ## Usage
 
-Pass text as an argument:
-
-```
-$ redact 'user=alice token=ghp_abcdefghijklmnopqrstuvwxyz0123456789 status=ok'
-user=alice token=**************************************** status=ok
-```
-
-Or pipe a file:
+Pipe a file:
 
 ```
 $ redact < ~/.aws/credentials
@@ -20,17 +13,34 @@ aws_access_key_id = ********************
 aws_secret_access_key = ****************************************
 ```
 
+Pass text inline with `-string`:
+
+```
+$ redact -string 'user=alice token=ghp_abcdefghijklmnopqrstuvwxyz0123456789 status=ok'
+user=alice token=**************************************** status=ok
+```
+
 Custom mask character:
 
 ```
-$ redact --mask=# 'token: ghp_abcdefghijklmnopqrstuvwxyz0123456789'
+$ redact -mask=# -string 'token: ghp_abcdefghijklmnopqrstuvwxyz0123456789'
 token: ########################################
 ```
 
 Catch a wider net of unknown-looking values in a config file:
 
 ```
-$ redact --min-entropy=2.0 < config.yaml
+$ redact -entropy=2.0 < config.yaml
+```
+
+Check for secrets without printing anything. Exits 1 if found, 0 if not:
+
+```
+$ redact -detect -string 'token=ghp_abcdefghijklmnopqrstuvwxyz0123456789' && echo clean || echo dirty
+dirty
+
+$ redact -detect -string 'log_level=debug' && echo clean || echo dirty
+clean
 ```
 
 ## Use as a package
@@ -39,6 +49,10 @@ $ redact --min-entropy=2.0 < config.yaml
 import "github.com/inancgumus/redact"
 
 clean := redact.String(text, redact.DefaultOptions)
+
+if redact.HasSecrets(text, redact.DefaultOptions) {
+    // text contains at least one detected secret
+}
 ```
 
 Tune the defaults:

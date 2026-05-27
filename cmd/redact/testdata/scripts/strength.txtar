@@ -1,0 +1,8 @@
+# Default --strength matches generic high-entropy values.
+exec ./redact -string 'api_key="aB3kPq9xZ7mNvR2tYuIo"'
+stdout '\*+'
+
+# Raising --strength above the captured group count disables generic matches.
+exec ./redact --strength=99 -string 'api_key="aB3kPq9xZ7mNvR2tYuIo"'
+! stdout '\*'
+stdout 'aB3kPq9xZ7mNvR2tYuIo'

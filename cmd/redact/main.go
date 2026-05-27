@@ -1,15 +1,13 @@
-// Command redact reads text from positional args or stdin and writes a
-// copy with detected secrets replaced by a placeholder.
+// Command redact reads text from -string or stdin and writes a copy with
+// detected secrets replaced by a mask character.
 package main
 
 import (
-	"bufio"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/inancgumus/redact"
 )
@@ -25,18 +23,22 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("redact", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fs.Usage = func() {
-		_, _ = fmt.Fprintln(stderr, "usage: redact [flags] [text...]")
-		_, _ = fmt.Fprintln(stderr, "reads text from args; if none, reads from stdin.")
+		_, _ = fmt.Fprintln(stderr, "usage: redact [flags]")
+		_, _ = fmt.Fprintln(stderr, "reads -string if set, otherwise stdin.")
 		fs.PrintDefaults()
 	}
 
 	opts := redact.DefaultOptions
 	fs.Var((*runeFlag)(&opts.Mask), "mask",
 		"character repeated for each byte of a secret")
-	fs.Float64Var(&opts.MinEntropy, "min-entropy", opts.MinEntropy,
+	fs.Float64Var(&opts.MinEntropy, "entropy", opts.MinEntropy,
 		"how random a value must look to be redacted (lower = redacts more)")
-	fs.IntVar(&opts.MinSubmatch, "min-submatch", opts.MinSubmatch,
+	fs.IntVar(&opts.MinSubmatch, "strength", opts.MinSubmatch,
 		"how strong a match must be to redact unknown secrets (higher = redacts less)")
+	detect := fs.Bool("detect", false,
+		"exit 1 if input contains secrets, 0 otherwise; no output")
+	var input string
+	fs.StringVar(&input, "string", "", "redact this text instead of reading stdin")
 
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -45,25 +47,38 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	if rest := fs.Args(); len(rest) > 0 {
-		_, err := io.WriteString(stdout, redact.String(strings.Join(rest, " "), opts))
-		return err
+	if fs.NArg() > 0 {
+		return fmt.Errorf("unexpected positional args; use -string for inline text")
 	}
 
-	// Peek so empty stdin prints usage instead of silently exiting.
-	// The peeked byte stays buffered for ReadAll.
-	br := bufio.NewReader(stdin)
-	if _, err := br.Peek(1); err != nil {
-		fs.Usage()
+	text := input
+	if !isStringFlagSet(fs) {
+		buf, err := io.ReadAll(stdin)
+		if err != nil {
+			return fmt.Errorf("read stdin: %w", err)
+		}
+		text = string(buf)
+	}
+
+	if *detect {
+		if redact.HasSecrets(text, opts) {
+			os.Exit(1)
+		}
 		return nil
 	}
 
-	buf, err := io.ReadAll(br)
-	if err != nil {
-		return fmt.Errorf("read stdin: %w", err)
-	}
-	_, err = io.WriteString(stdout, redact.String(string(buf), opts))
+	_, err := io.WriteString(stdout, redact.String(text, opts))
 	return err
+}
+
+func isStringFlagSet(fs *flag.FlagSet) bool {
+	var set bool
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "string" {
+			set = true
+		}
+	})
+	return set
 }
 
 // runeFlag adapts a *rune to the flag.Value interface so the mask flag

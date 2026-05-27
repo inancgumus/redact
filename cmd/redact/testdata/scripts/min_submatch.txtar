@@ -1,8 +1,0 @@
-# Default --min-submatch matches generic high-entropy values.
-exec ./redact 'api_key="aB3kPq9xZ7mNvR2tYuIo"'
-stdout '\*+'
-
-# Raising --min-submatch above the captured group count disables generic matches.
-exec ./redact --min-submatch=99 'api_key="aB3kPq9xZ7mNvR2tYuIo"'
-! stdout '\*'
-stdout 'aB3kPq9xZ7mNvR2tYuIo'

@@ -1,5 +1,5 @@
 # Plain prose passes through unchanged.
-exec ./redact 'the quick brown fox'
+exec ./redact -string 'the quick brown fox'
 stdout '^the quick brown fox$'
 ! stdout '\*'
 
