@@ -59,9 +59,9 @@ Tune the defaults:
 
 ```go
 clean := redact.String(text, redact.Options{
-    Mask:        '#',  // Character repeated for each byte. Default '*'.
-    MinEntropy:  4.0,  // Raise to cut false positives. Default 3.5.
-    MinSubmatch: 2,    // Raise to be more cautious on unknown patterns. Default 2.
+    Mask:     '#',  // Character repeated for each byte. Default '*'.
+    Entropy:  4.0,  // Raise to cut false positives. Default 3.5.
+    Strength: 2,    // Raise to be more cautious on unknown patterns. Default 2.
 })
 ```
 

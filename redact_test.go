@@ -216,8 +216,8 @@ func TestString_ZeroFieldsUseDefaults(t *testing.T) {
 
 func TestString_RaisedEntropyDisablesGenericMatch(t *testing.T) {
 	in := `api_key="abcdefghij1234567890"`
-	lax := redact.String(in, redact.Options{MinEntropy: 1.0})
-	strict := redact.String(in, redact.Options{MinEntropy: 10.0})
+	lax := redact.String(in, redact.Options{Entropy: 1.0})
+	strict := redact.String(in, redact.Options{Entropy: 10.0})
 	if !strings.ContainsRune(lax, redact.DefaultMask) {
 		t.Errorf("low entropy threshold failed to redact: %q", lax)
 	}
@@ -268,7 +268,7 @@ func TestHasSecrets(t *testing.T) {
 		{"var expansion", `password="${SECRET}"`, redact.DefaultOptions, false},
 		{"uuid value", "token=550e8400-e29b-41d4-a716-446655440000", redact.DefaultOptions, false},
 		{"zero opts use defaults", "AKIAIOSFODNN7EXAMPLE", redact.Options{}, true},
-		{"raised entropy disables generic", `api_key="aB3kPq9xZ7mNvR2tYuIo"`, redact.Options{MinEntropy: 10.0}, false},
+		{"raised entropy disables generic", `api_key="aB3kPq9xZ7mNvR2tYuIo"`, redact.Options{Entropy: 10.0}, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

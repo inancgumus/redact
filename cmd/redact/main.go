@@ -31,9 +31,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	opts := redact.DefaultOptions
 	fs.Var((*runeFlag)(&opts.Mask), "mask",
 		"character repeated for each byte of a secret")
-	fs.Float64Var(&opts.MinEntropy, "entropy", opts.MinEntropy,
+	fs.Float64Var(&opts.Entropy, "entropy", opts.Entropy,
 		"how random a value must look to be redacted (lower = redacts more)")
-	fs.IntVar(&opts.MinSubmatch, "strength", opts.MinSubmatch,
+	fs.IntVar(&opts.Strength, "strength", opts.Strength,
 		"how strong a match must be to redact unknown secrets (higher = redacts less)")
 	detect := fs.Bool("detect", false,
 		"exit 1 if input contains secrets, 0 otherwise; no output")

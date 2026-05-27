@@ -13,43 +13,43 @@ const (
 	// secret. Output preserves the original length: a 20-byte secret
 	// becomes 20 copies of DefaultMask.
 	DefaultMask rune = '*'
-	// DefaultMinEntropy is the minimum Shannon entropy (bits/char) a
+	// DefaultEntropy is the minimum Shannon entropy (bits/char) a
 	// captured value must have to be treated as a secret.
-	DefaultMinEntropy = 3.5
-	// DefaultMinSubmatch is the minimum number of regex submatches required
+	DefaultEntropy = 3.5
+	// DefaultStrength is the minimum number of regex submatches required
 	// before a generic match is considered for redaction.
-	DefaultMinSubmatch = 2
+	DefaultStrength = 2
 )
 
 // Options configures redaction. Zero-valued fields fall back to defaults.
 type Options struct {
 	// Mask is the character repeated for each byte of a detected secret.
 	Mask rune
-	// MinEntropy is the minimum Shannon entropy (bits/char) a captured
+	// Entropy is the minimum Shannon entropy (bits/char) a captured
 	// value must have to be redacted. Lower values redact more aggressively.
-	MinEntropy float64
-	// MinSubmatch is the minimum number of regex submatches required before
+	Entropy float64
+	// Strength is the minimum number of regex submatches required before
 	// a generic match is considered for redaction.
-	MinSubmatch int
+	Strength int
 }
 
 // DefaultOptions holds the default redaction settings. Pass to String when no
 // overrides are needed.
 var DefaultOptions = Options{
-	Mask:        DefaultMask,
-	MinEntropy:  DefaultMinEntropy,
-	MinSubmatch: DefaultMinSubmatch,
+	Mask:     DefaultMask,
+	Entropy:  DefaultEntropy,
+	Strength: DefaultStrength,
 }
 
 func (o Options) resolve() Options {
 	if o.Mask == 0 {
 		o.Mask = DefaultMask
 	}
-	if o.MinEntropy == 0 {
-		o.MinEntropy = DefaultMinEntropy
+	if o.Entropy == 0 {
+		o.Entropy = DefaultEntropy
 	}
-	if o.MinSubmatch == 0 {
-		o.MinSubmatch = DefaultMinSubmatch
+	if o.Strength == 0 {
+		o.Strength = DefaultStrength
 	}
 	return o
 }
@@ -260,7 +260,7 @@ func redactPasswordValue(opts Options) func(string) string {
 func redact(opts Options) func(string) string {
 	return func(m string) string {
 		subs := genericSecretRE.FindStringSubmatch(m)
-		if len(subs) < opts.MinSubmatch {
+		if len(subs) < opts.Strength {
 			return m
 		}
 		captured := subs[1]
@@ -270,7 +270,7 @@ func redact(opts Options) func(string) string {
 		if notSecretRE.MatchString(captured) || uuidRE.MatchString(captured) {
 			return m
 		}
-		if shannonEntropy(captured) < opts.MinEntropy {
+		if shannonEntropy(captured) < opts.Entropy {
 			return m
 		}
 		return strings.Replace(m, captured, opts.mask(len(captured)), 1)
